@@ -1,1 +1,3 @@
-Je viens d'ajouter ceci au fichier en date du 9 mai 2025 à 14h52
+Je viens d'ajouter ceci au fichier en date du 9 mai 2025 à 14h52.
+
+Le 12 mai 2025, j'ai travaillé sur le programme Riemann_Zeta.sas.
