@@ -1,9 +1,9 @@
-/* Program to Chart the Riemann Zeta Function in SAS */
-%macro RiemannZeta(sigma_min=0, sigma_max=2, sigma_step=0.05, 
-                  t_min=0, t_max=30, t_step=0.5,
-                  terms=1000);
+/* Simplified Program to Chart the Riemann Zeta Function in SAS */
+%macro RiemannZetaSimple(sigma_min=0, sigma_max=2, sigma_step=0.1, 
+                       t_min=0, t_max=30, t_step=0.5,
+                       terms=100);  /* Reduced default terms */
 
-/* Create dataset with grid points for sigma and t */
+/* Create reduced grid with larger step sizes */
 data grid;
     do sigma = &sigma_min to &sigma_max by &sigma_step;
         do t = &t_min to &t_max by &t_step;
@@ -12,7 +12,7 @@ data grid;
     end;
 run;
 
-/* Calculate Riemann Zeta function */
+/* Calculate Riemann Zeta function with fewer terms */
 data zeta;
     set grid;
     z_real = sigma;
@@ -22,10 +22,11 @@ data zeta;
     zeta_real = 0;
     zeta_imag = 0;
     
-    /* Sum the first n terms of the series */
+    /* Use fewer terms in approximation */
     do n = 1 to &terms;
-        /* Calculate n^(-z) = n^(-sigma) * e^(-it*ln(n)) */
-        /* n^(-z) = n^(-sigma) * (cos(-t*ln(n)) + i*sin(-t*ln(n))) */
+        /* For large values of t and small sigma, many terms are negligible
+           Skip calculation when term is likely to be very small */
+        if n > 20 and t > 10 and n**(-sigma) < 0.01 then continue;
         
         n_pow_minus_sigma = n**(-sigma);
         arg = -t * log(n);
@@ -39,79 +40,61 @@ data zeta;
     
     /* Calculate absolute value of zeta(z) */
     zeta_abs = sqrt(zeta_real**2 + zeta_imag**2);
-    
-    /* Calculate argument (phase) of zeta(z) in radians */
-    zeta_arg = atan2(zeta_imag, zeta_real);
-    
-    /* Convert argument to degrees */
-    zeta_arg_deg = zeta_arg * 180 / constant('pi');
 run;
 
-/* Create visualizations */
-title "Riemann Zeta Function |ζ(σ + it)|";
+/* Create simple heatmap visualization - fastest option */
+title "Riemann Zeta Function |ζ(σ + it)| - Simplified";
 title2 "σ range: &sigma_min to &sigma_max, t range: &t_min to &t_max";
 
-/* Create a contour plot of |ζ(σ + it)| */
-proc sgrender data=zeta template=ContourPlotParm;
-    dynamic _title="Absolute Value of Riemann Zeta Function |ζ(σ + it)|"
-            _x="z_real" _y="z_imag" _z="zeta_abs";
-run;
-
-/* Create a 3D surface plot of |ζ(σ + it)| */
-proc g3d data=zeta;
-    scatter z_real*z_imag=zeta_abs / rotate=20;
-    label z_real = "Real part (σ)"
-          z_imag = "Imaginary part (t)"
-          zeta_abs = "|ζ(σ + it)|";
-run;
-
-/* Create a heatmap of |ζ(σ + it)| */
 proc sgplot data=zeta;
-    heatmap x=z_real y=z_imag / colorresponse=zeta_abs colormodel=threecolor
-            name="heat";
+    heatmapparm x=z_real y=z_imag colorresponse=zeta_abs / 
+                colormodel=threecolor name="heat";
     gradlegend "heat" / title="|ζ(σ + it)|";
     xaxis label="Real part (σ)";
     yaxis label="Imaginary part (t)";
 run;
 
-/* Create a contour plot of the argument of ζ(σ + it) */
-proc sgplot data=zeta;
-    contour x=z_real y=z_imag / response=zeta_arg_deg contourtype=fill
-            name="contour";
-    gradlegend "contour" / title="Arg(ζ(σ + it)) in degrees";
-    xaxis label="Real part (σ)";
-    yaxis label="Imaginary part (t)";
-run;
+%mend RiemannZetaSimple;
 
-%mend RiemannZeta;
-
-/* Example usage - customize parameter values as needed */
-%RiemannZeta(sigma_min=0.5, sigma_max=2, sigma_step=0.05,
-             t_min=0, t_max=30, t_step=0.5,
-             terms=1000);
-
-/* For 3D visualization along a specific line */
-%macro RiemannZetaLine(sigma_fixed=0.5, 
-                      t_min=0, t_max=50, t_step=0.1,
-                      terms=1000);
+/* For quick visualization along a specific line */
+%macro RiemannZetaLineSimple(sigma_fixed=0.5, 
+                           t_min=0, t_max=50, t_step=0.5,
+                           terms=100);
 
 data zeta_line;
     sigma = &sigma_fixed;
+    
+    /* Use larger step size for faster computation */
     do t = &t_min to &t_max by &t_step;
         /* Initialize zeta function components */
         zeta_real = 0;
         zeta_imag = 0;
         
-        /* Sum the first n terms of the series */
-        do n = 1 to &terms;
-            n_pow_minus_sigma = n**(-sigma);
-            arg = -t * log(n);
-            
-            term_real = n_pow_minus_sigma * cos(arg);
-            term_imag = n_pow_minus_sigma * sin(arg);
-            
-            zeta_real + term_real;
-            zeta_imag + term_imag;
+        /* For sigma > 1, we can use a faster approximation */
+        if sigma > 1 then do;
+            /* Simplified calculation for sigma > 1 */
+            sum_terms = 0;
+            do n = 1 to &terms;
+                sum_terms = sum_terms + 1/(n**sigma);
+            end;
+            zeta_real = sum_terms;
+            zeta_imag = 0;
+        end;
+        else do;
+            /* For sigma <= 1, we need to calculate term by term */
+            do n = 1 to &terms;
+                /* Skip calculation when term is likely to be very small */
+                if n > 20 and n**(-sigma) < 0.01 then continue;
+                
+                n_pow_minus_sigma = n**(-sigma);
+                arg = -t * log(n);
+                
+                term_real = n_pow_minus_sigma * cos(arg);
+                term_imag = n_pow_minus_sigma * sin(arg);
+                
+                zeta_real + term_real;
+                zeta_imag + term_imag;
+            end;
         end;
         
         zeta_abs = sqrt(zeta_real**2 + zeta_imag**2);
@@ -119,7 +102,7 @@ data zeta_line;
     end;
 run;
 
-title "Riemann Zeta Function |ζ(&sigma_fixed + it)|";
+title "Riemann Zeta Function |ζ(&sigma_fixed + it)| - Simplified";
 title2 "Fixed σ = &sigma_fixed, t range: &t_min to &t_max";
 
 proc sgplot data=zeta_line;
@@ -128,15 +111,14 @@ proc sgplot data=zeta_line;
     yaxis label="|ζ(&sigma_fixed + it)|";
 run;
 
-proc sgplot data=zeta_line;
-    series x=zeta_real y=zeta_imag / lineattrs=(thickness=2 color=red);
-    xaxis label="Re(ζ(&sigma_fixed + it))";
-    yaxis label="Im(ζ(&sigma_fixed + it))";
-run;
+%mend RiemannZetaLineSimple;
 
-%mend RiemannZetaLine;
+/* Example usage with parameters optimized for speed */
+%RiemannZetaSimple(sigma_min=0, sigma_max=2, sigma_step=0.1,
+                  t_min=0, t_max=30, t_step=1,
+                  terms=50);
 
-/* Example usage for a line chart with fixed sigma */
-%RiemannZetaLine(sigma_fixed=0.5, 
-                t_min=0, t_max=50, t_step=0.1,
-                terms=1000);
+/* Example for critical line - faster version */
+%RiemannZetaLineSimple(sigma_fixed=0.5, 
+                      t_min=0, t_max=30, t_step=0.2,
+                      terms=50);
