@@ -5,7 +5,7 @@ data customers;
     length FirstName $ 20 LastName $ 20 Address $ 50 City $ 25;
     input CustomerID FirstName $ LastName $ Address $ City $;
     datalines;
-1001,John,Smith,123 Main St,Anytown
+1001,Jean,Smith,123 Main St,Anytown
 1002,Sarah,Johnson,456 Oak Ave,Someville
 1003,Michael,Brown,789 Pine Rd,Othertown
 1004,Jennifer,Wilson,101 Maple Dr,Newcity
