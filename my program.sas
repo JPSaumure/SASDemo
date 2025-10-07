@@ -2,8 +2,6 @@ cas mysession ;
 
 caslib _all_ assign;
 
-options casdatalimit=ALL;
-
 data environment_info;
     length info_type $50 info_value $500;
     
