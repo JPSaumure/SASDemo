@@ -1,3 +1,5 @@
+/* this is a test*/
+
 cas mysession ;
 
 caslib _all_ assign;
